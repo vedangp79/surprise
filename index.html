@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Will you be my Valentine?</title>
+
+  <!-- Confetti library -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <style>
+    :root {
+      --bg1: #ffd6e7;
+      --bg2: #ffeef6;
+      --card: #ffffffcc;
+      --yes: #ff3b7a;
+      --yesHover: #ff1f68;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100svh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at top, var(--bg2), var(--bg1));
+      font-family: system-ui, sans-serif;
+      overflow: hidden;
+      padding: 16px;
+    }
+
+    /* FULL-SCREEN CONFETTI CANVAS */
+    #confettiCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    .card {
+      width: min(720px, 92vw);
+      padding: 26px 22px;
+      background: var(--card);
+      backdrop-filter: blur(10px);
+      border-radius: 22px;
+      text-align: center;
+      box-shadow: 0 18px 60px rgba(0,0,0,.15);
+    }
+
+    .art {
+      width: min(260px, 80vw);
+      margin: 0 auto 10px;
+      display: block;
+      filter: drop-shadow(0 10px 14px rgba(0,0,0,.12));
+    }
+
+    h1 {
+      font-size: clamp(26px, 4vw, 44px);
+      margin: 12px 0 18px;
+    }
+
+    .button-zone {
+      position: relative;
+      width: min(520px, 92%);
+      height: 150px;
+      margin: 0 auto;
+      touch-action: none;
+    }
+
+    button {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 16px 24px;
+      font-size: 18px;
+      font-weight: 800;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(0,0,0,.14);
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform .12s ease, background .12s ease;
+    }
+
+    #yesBtn {
+      left: 18%;
+      background: var(--yes);
+      color: #fff;
+    }
+    #yesBtn:hover { background: var(--yesHover); }
+
+    #noBtn {
+      left: 62%;
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 13px;
+      opacity: .7;
+    }
+
+    .result {
+      display: none;
+      margin-top: 18px;
+      animation: pop .35s ease;
+    }
+
+    .result h2 {
+      font-size: clamp(30px, 4.5vw, 46px);
+      margin: 10px 0;
+    }
+
+    .no-pop {
+      display: none;
+      margin-top: 14px;
+      animation: pop .25s ease;
+    }
+
+    .no-pop img {
+      display: none;          /* hidden until JS shows it */
+      margin: 0 auto;
+      transform-origin: center;
+    }
+
+    /* First image (wide eyes) size */
+    #noImg1 {
+      width: 120px;
+      max-width: 60vw;
+    }
+
+    /* Second image (the one that grows) size */
+    #noImg2 {
+      width: 140px;
+      max-width: 70vw;
+    }
+
+    .no-first img {
+      display: block;   /* override .no-pop img { display:none } */
+    }
+
+    .no-first img {
+      margin: 0;         /* remove auto margins */
+    }
+
+
+    .fireworks {
+      width: min(380px, 90vw);
+      margin: 0 auto;
+      display: block;
+    }
+
+    .no-first {
+      display: none;              /* hidden until JS shows it */
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .tear-emoji {
+      display: none;              /* hidden until first click */
+      font-size: 44px;            /* adjust size */
+      line-height: 1;
+    }
+
+    /* Hide question text on Yes */
+    .question {
+      transition: opacity .2s ease, transform .2s ease;
+    }
+
+    /* Overlay of 8 images around the card */
+    .gallery-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      pointer-events: none; /* images won't block clicks */
+      z-index: 9000;
+    }
+
+    .gallery-overlay img {
+      position: fixed;
+      width: 180px;
+      max-width: 30vw;
+      height: auto;
+      border-radius: 16px;
+      box-shadow: 0 14px 34px rgba(0,0,0,.22);
+      animation: pop .35s ease;
+    }
+
+    /* 3 on top (closer to card) */
+    .gallery-overlay img:nth-child(1) { top: 90px; left: 12%; }
+    .gallery-overlay img:nth-child(2) { top: 10px; left: 50%; transform: translateX(-50%); }
+    .gallery-overlay img:nth-child(3) { top: 90px; right: 12%; }
+
+    /* 3 on bottom */
+    .gallery-overlay img:nth-child(4) { bottom: 90px; left: 12%; }
+    .gallery-overlay img:nth-child(5) { bottom: 70px; left: 50%; transform: translateX(-50%); }
+    .gallery-overlay img:nth-child(6) { bottom: 90px; right: 12%; }
+
+    /* Make bottom row images bigger (pic 4, 5, 6) */
+    .gallery-overlay img:nth-child(4),
+    .gallery-overlay img:nth-child(5),
+    .gallery-overlay img:nth-child(6) {
+      width: 240px;      /* increase size */
+      max-width: 38vw;
+    }
+
+
+    /* 1 on left side */
+    .gallery-overlay img:nth-child(7) { top: 50%; left: 6%; transform: translateY(-50%); }
+
+    /* 1 on right side */
+    .gallery-overlay img:nth-child(8) { top: 50%; right: 6%; transform: translateY(-50%); }
+
+    .love-message {
+      display: none;
+      position: fixed;
+      top: 50%;
+      right: 20%;
+      transform: translateY(-50%);
+      max-width: 300px;
+
+      font-size: 30px;
+      font-weight: 900;
+      color: #ff1f68;
+      text-align: center;
+      line-height: 1.25;
+
+      animation: pop .35s ease;
+    }
+
+    .signature {
+    font-size: 22px;        /* slightly smaller than main text */
+    font-weight: 700;
+    opacity: 0.9;
+    }
+
+
+    @keyframes pop {
+      from { transform: scale(.96); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="confettiCanvas"></canvas>
+
+  <main class="card">
+    <!-- ANIMAL WITH HEART -->
+    <img
+    class="art"
+    src="https://gifdb.com/images/high/cute-love-bear-roses-ou7zho5oosxnpo6k.gif"
+    alt="Cute love bear"
+    />
+
+    <h1 class="question" id="question">Sanu, will you be my valentine?</h1>
+
+
+    <section class="button-zone" id="zone">
+      <button id="yesBtn">Yes</button>
+      <button id="noBtn">No</button>
+    </section>
+
+    <!-- NO CLICK POP-UP -->
+    <section class="no-pop" id="noPop" aria-hidden="true">
+      <!-- shows only on first No click -->
+       <div class="no-first">
+        <img id="noImg1" src="assets/wide-eyes.jpeg" alt="Wide eyes" />
+        <span id="tearEmoji" class="tear-emoji">🥹</span>
+      </div>
+
+      <!-- shows starting from second No click -->
+      <img id="noImg2" src="assets/no-pop.jpeg" alt="Pleaseee" />
+    </section>
+
+    <!-- HINT -->
+
+    <section class="result" id="result">
+      <h2>YAY! 🎉</h2>
+      <img
+        class="fireworks"
+        src="https://media.tenor.com/gUiu1zyxfzYAAAAi/bear-kiss-bear-kisses.gif"
+        alt="Bear kiss"
+      />
+    </section>
+  </main>
+
+  <!-- 8-IMAGE OVERLAY (shows on Yes) -->
+  <section class="gallery-overlay" id="gallery">
+    <img src="assets/pic1.jpeg" alt="pic1">
+    <img src="assets/pic2.jpeg" alt="pic2">
+    <img src="assets/pic3.jpeg" alt="pic3">
+    <img src="assets/pic4.jpeg" alt="pic4">
+    <img src="assets/pic5.jpeg" alt="pic5">
+    <img src="assets/pic6.jpeg" alt="pic6">
+    <img src="assets/pic7.jpeg" alt="pic7">
+    <img src="assets/pic8.jpeg" alt="pic8">
+  </section>
+
+  <!-- RIGHT SIDE MESSAGE (shows on Yes) -->
+  <div class="love-message" id="loveMessage">
+  Can’t wait to see you on Thursday bub :)<br><br>
+  <span class="signature">Love,<br>– Vedang</span>
+  </div>
+
+
+  <script>
+    const zone = document.getElementById("zone");
+    const yesBtn = document.getElementById("yesBtn");
+    const noBtn = document.getElementById("noBtn");
+    const result = document.getElementById("result");
+    const question = document.getElementById("question");
+    const gallery = document.getElementById("gallery");
+    const loveMessage = document.getElementById("loveMessage");
+
+
+    /* ---------- CONFETTI ---------- */
+    const confettiCanvas = document.getElementById("confettiCanvas");
+
+    function resizeConfettiCanvas() {
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      confettiCanvas.width = Math.floor(window.innerWidth * dpr);
+      confettiCanvas.height = Math.floor(window.innerHeight * dpr);
+      confettiCanvas.style.width = "100vw";
+      confettiCanvas.style.height = "100vh";
+    }
+
+    resizeConfettiCanvas();
+    window.addEventListener("resize", resizeConfettiCanvas);
+    window.addEventListener("orientationchange", () => setTimeout(resizeConfettiCanvas, 150));
+
+    const confettiInstance = confetti.create(confettiCanvas, {
+      resize: false,
+      useWorker: true
+    });
+
+    function fullScreenConfetti() {
+      const end = Date.now() + 1600;
+
+      (function frame() {
+        confettiInstance({
+          particleCount: 12,
+          spread: 90,
+          startVelocity: 45,
+          ticks: 180,
+          origin: { x: Math.random(), y: Math.random() * 0.3 }
+        });
+        if (Date.now() < end) requestAnimationFrame(frame);
+      })();
+
+      setTimeout(() => {
+        confettiInstance({
+          particleCount: 300,
+          spread: 140,
+          startVelocity: 60,
+          ticks: 220,
+          origin: { x: 0.5, y: 0.55 }
+        });
+      }, 300);
+    }
+
+    /* ---------- YES BUTTON GROWS ---------- */
+    let yesScale = 1;
+    function growYes() {
+      yesScale = Math.min(2.2, yesScale + 0.1);
+      yesBtn.style.transform = `translateY(-50%) scale(${yesScale})`;
+    }
+
+    /* ---------- NO BUTTON RUNS AWAY ---------- */
+    function clamp(n, min, max) {
+      return Math.max(min, Math.min(max, n));
+    }
+
+    function moveNo(px, py) {
+      const z = zone.getBoundingClientRect();
+      const b = noBtn.getBoundingClientRect();
+
+      let dx = (b.left + b.width / 2) - px;
+      let dy = (b.top + b.height / 2) - py;
+      let mag = Math.hypot(dx, dy) || 1;
+      dx /= mag;
+      dy /= mag;
+
+      let newLeft = (b.left - z.left) + dx * 150;
+      let newTop  = (b.top - z.top) + dy * 150;
+
+      newLeft = clamp(newLeft, 0, z.width - b.width);
+      newTop  = clamp(newTop, 0, z.height - b.height);
+
+      noBtn.style.left = newLeft + "px";
+      noBtn.style.top = newTop + "px";
+      noBtn.style.transform = "none";
+
+      growYes();
+    }
+
+    zone.addEventListener("pointermove", e => {
+      const b = noBtn.getBoundingClientRect();
+      const d = Math.hypot(
+        (b.left + b.width / 2) - e.clientX,
+        (b.top + b.height / 2) - e.clientY
+      );
+      if (d < 140) moveNo(e.clientX, e.clientY);
+    });
+
+    const noPop = document.getElementById("noPop");
+    const noImg1 = document.getElementById("noImg1"); // wide eyes
+    const noImg2 = document.getElementById("noImg2"); // grows
+    const noFirst = document.querySelector(".no-first");
+    const tearEmoji = document.getElementById("tearEmoji");
+
+
+    let noClicks = 0;
+    let noScale2 = 1;
+
+    noBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+
+      noClicks += 1;
+
+      // show the pop container
+      noPop.style.display = "block";
+      noPop.setAttribute("aria-hidden", "false");
+
+      if (noClicks === 1) {
+        // first click: show wide eyes only
+        noFirst.style.display = "flex";   // shows image1 + emoji together
+        tearEmoji.style.display = "inline-block";
+        noImg2.style.display = "none";
+        noImg1.style.transform = "none";
+
+      } else {
+        // second+ click: show the other image and grow it each time
+        noFirst.style.display = "none";
+        tearEmoji.style.display = "none";
+        noImg2.style.display = "block";
+
+        noScale2 = Math.min(3.0, noScale2 + 0.18);
+        noImg2.style.transform = `scale(${noScale2})`;
+      }
+
+      // keep your existing "Yes grows" behavior
+      growYes();
+    });
+
+
+
+    /* ---------- YES CLICK ---------- */
+    yesBtn.addEventListener("click", () => {
+      // hide the question
+      question.style.display = "none";
+      zone.style.display = "none";
+      noPop.style.display = "none";
+      // show the 8-image overlay
+      gallery.style.display = "block";
+      loveMessage.style.display = "block"; 
+      result.style.display = "block";
+      resizeConfettiCanvas();
+      fullScreenConfetti();
+    });
+  </script>
+</body>
+</html>
